@@ -1,0 +1,91 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.env
+*.local
+*.secret
+*.secrets
+secrets.*
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+.cache/
+
+# Test and coverage artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+junit.xml
+.pytest_cache/
+
+# Build and package artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# Logs and runtime files
+*.log
+logs/
+run/
+*.pid
+*.seed
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Local databases, dumps, and exports
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+*.csv.gz
+*.bak
+*.backup
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS and OS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Node/frontend artifacts should not be needed here, but ignore if created locally
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Generated local files
+*.prof
+*.orig
+*.rej

@@ -1,0 +1,5 @@
+Артикул;Наименование;Марка;Модель;Комментарий;Фото;Новый/БУ;Цена;Статус
+A-1;Фара;Toyota;Camry;Левая фара;https://img.test/1.jpg, https://img.test/2.jpg;БУ;1200;В наличии
+A-2;Фара;Toyota;Camry;Правая фара;https://img.test/3.jpg;БУ;1300;В наличии
+B-1;Товары из Дордоя;Honda;Fit;;https://img.test/4.jpg;Новый;2500;В наличии
+BAD-1;;Toyota;Camry;No name;https://img.test/5.jpg;БУ;100;В наличии

@@ -51,7 +51,7 @@ Provider feed/API/page
 -> LegacyAd DTO
 -> CatalogListingPayload
 -> read current rows from new catalog DB
--> diff by provider source from sync_listing_map + user_id + category_id + external_id
+-> diff by user_id + category_id + external_id from listing_attributes
 -> guarded insert/update/deactivate
 -> optional verification
 ```
@@ -109,11 +109,10 @@ SYNC_HTTP_TIMEOUT=30
 SYNC_LOG_LEVEL=INFO
 ```
 
-Provider-specific user IDs and phones are supported:
+Provider-specific user IDs are supported. Phones use the global `SYNC_CATALOG_PHONES` fallback unless a provider feed supplies phones directly:
 
 ```env
 SYNC_CATALOG_USER_ID_AUTOLAND=
-SYNC_CATALOG_PHONES_AUTOLAND=
 ```
 
 Provider feed/base URL overrides are available in `.env.example`, for example:
@@ -210,7 +209,7 @@ user id, category ids, mode, and write flag. Passwords are never printed.
 
 `--verify` is meaningful after real writes. It re-reads affected rows and checks:
 
-- listing exists by `sync_listing_map.source + user_id + category_id + external_id`
+- listing exists by `user_id + category_id + listing_attributes.external_id`
 - `external_id` attribute exists
 - user id and category id
 - title, description, price, currency, status
@@ -266,12 +265,12 @@ python -m app.cli sync-all --verify --no-dry-run
 Manual SQL examples are in:
 
 ```text
-../docs/manual-db-verification.md
+docs_from_php/manual-db-verification.md
 ```
 
 It includes queries for:
 
-- listing by provider + external id
+- listing by user id + category id + external id
 - listing attributes
 - images
 - inactive/deactivated listings

@@ -4,6 +4,7 @@ from typing import Any
 
 from app.dto import CatalogImagePayload, CatalogListingPayload
 from app.repositories.catalog_listings import ExistingImage, ExistingListing
+from app.utils.identity import listing_identity_key, listing_identity_label
 
 
 @dataclass(frozen=True)
@@ -52,12 +53,15 @@ class DiffService:
         image_deactivate: list[ImageDeactivate] = []
 
         for payload in incoming:
-            if payload.external_id in seen:
-                duplicate_external_ids.append(payload.external_id)
+            key = listing_identity_key(payload.category_id, payload.external_id)
+            if key in seen:
+                duplicate_external_ids.append(
+                    listing_identity_label(payload.category_id, payload.external_id)
+                )
                 continue
-            seen.add(payload.external_id)
+            seen.add(key)
 
-            existing = current.get(payload.external_id)
+            existing = current.get(key)
             if existing is None:
                 insert.append(payload)
                 continue
@@ -80,7 +84,7 @@ class DiffService:
             else:
                 unchanged.append(payload)
 
-        deactivate = [listing for listing in current.values() if listing.external_id not in seen]
+        deactivate = [listing for key, listing in current.items() if key not in seen]
         warnings = tuple(
             f"duplicate provider external_id skipped: {external_id}"
             for external_id in duplicate_external_ids

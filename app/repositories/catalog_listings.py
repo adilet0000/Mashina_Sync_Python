@@ -3,12 +3,13 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import bindparam, inspect, text
+from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.dto import CatalogAttributePayload, CatalogImagePayload, CatalogListingPayload
 from app.repositories.catalog_references import CatalogReferenceResolver
+from app.utils.identity import listing_identity_key
 from app.utils.slug import stable_slug
 
 logger = logging.getLogger(__name__)
@@ -72,17 +73,7 @@ class CatalogListingsRepository:
         self.session = session
         self.settings = settings
         self.reference_resolver = reference_resolver or CatalogReferenceResolver(session)
-        self._has_sync_listing_map: bool | None = None
-
-    def has_sync_listing_map(self) -> bool:
-        if self._has_sync_listing_map is not None:
-            return self._has_sync_listing_map
-        try:
-            bind = self.session.get_bind()
-            self._has_sync_listing_map = inspect(bind).has_table("sync_listing_map")
-        except Exception:  # noqa: BLE001 - reflection failures should fall back to EAV lookup
-            self._has_sync_listing_map = False
-        return self._has_sync_listing_map
+        self.last_duplicate_external_ids: tuple[str, ...] = ()
 
     def get_current_by_provider(
         self,
@@ -91,11 +82,7 @@ class CatalogListingsRepository:
         user_id: int,
         category_ids: tuple[int, ...] | list[int] | None = None,
     ) -> dict[str, ExistingListing]:
-        if self.has_sync_listing_map():
-            statement = self.build_sync_map_current_query(category_ids)
-        else:
-            statement = self.build_eav_current_query(category_ids)
-
+        statement = self.build_eav_current_query(category_ids)
         params: dict[str, Any] = {"source": provider, "user_id": user_id}
         if category_ids:
             params["category_ids"] = tuple(category_ids)
@@ -108,7 +95,28 @@ class CatalogListingsRepository:
             .mappings()
             .all()
         )
-        current = {str(row["external_id"]): self._listing_from_row(row) for row in rows}
+        current: dict[str, ExistingListing] = {}
+        duplicate_keys: set[str] = set()
+        for row in rows:
+            external_id = str(row["external_id"])
+            key = listing_identity_key(int(row["category_id"]), external_id)
+            if key in current:
+                duplicate_keys.add(key)
+                continue
+            current[key] = self._listing_from_row(row)
+
+        for key in duplicate_keys:
+            current.pop(key, None)
+        self.last_duplicate_external_ids = tuple(sorted(duplicate_keys))
+        if duplicate_keys:
+            logger.warning(
+                "duplicate current listing identity values found user_id=%s category_ids=%s "
+                "identity_keys=%s; skipped ambiguous rows",
+                user_id,
+                tuple(category_ids or ()),
+                tuple(sorted(duplicate_keys)),
+            )
+
         for listing in current.values():
             object.__setattr__(listing, "attributes", self.get_listing_attributes(listing.id))
             object.__setattr__(listing, "images", tuple(self.get_listing_images(listing.id)))
@@ -127,7 +135,7 @@ class CatalogListingsRepository:
             user_id=user_id,
             category_ids=(category_id,),
         )
-        return current.get(external_id)
+        return current.get(listing_identity_key(category_id, external_id))
 
     def get_by_id(self, listing_id: int) -> ExistingListing | None:
         row = (
@@ -151,11 +159,10 @@ class CatalogListingsRepository:
 
         attributes = self.get_listing_attributes(listing_id)
         external_id = str(attributes.get("external_id") or "")
-        source = self.get_identity_source_for_listing(listing_id) or ""
         listing = ExistingListing(
             id=int(row["id"]),
             external_id=external_id,
-            source=source,
+            source="",
             user_id=int(row["user_id"]),
             category_id=int(row["category_id"]),
             title=row.get("title"),
@@ -168,33 +175,6 @@ class CatalogListingsRepository:
             images=tuple(self.get_listing_images(listing_id)),
         )
         return listing
-
-    def build_sync_map_current_query(self, category_ids: tuple[int, ...] | list[int] | None):
-        category_filter = "AND m.category_id IN :category_ids" if category_ids else ""
-        statement = text(
-            f"""
-            SELECT
-              l.id,
-              m.external_id,
-              m.source,
-              l.user_id,
-              l.category_id,
-              l.title,
-              l.description,
-              l.price,
-              l.currency,
-              l.status,
-              l.slug
-            FROM sync_listing_map m
-            JOIN listings l ON l.id = m.listing_id
-            WHERE m.source = :source
-              AND m.user_id = :user_id
-              {category_filter}
-            """
-        )
-        if category_ids:
-            statement = statement.bindparams(bindparam("category_ids", expanding=True))
-        return statement
 
     def build_eav_current_query(self, category_ids: tuple[int, ...] | list[int] | None):
         category_filter = "AND l.category_id IN :category_ids" if category_ids else ""
@@ -225,26 +205,6 @@ class CatalogListingsRepository:
         if category_ids:
             statement = statement.bindparams(bindparam("category_ids", expanding=True))
         return statement
-
-    def get_identity_source_for_listing(self, listing_id: int) -> str | None:
-        if not self.has_sync_listing_map():
-            return None
-        row = (
-            self.session.execute(
-                text(
-                    """
-                    SELECT source
-                    FROM sync_listing_map
-                    WHERE listing_id = :listing_id
-                    LIMIT 1
-                    """
-                ),
-                {"listing_id": listing_id},
-            )
-            .mappings()
-            .first()
-        )
-        return str(row["source"]) if row else None
 
     def get_listing_attributes(self, listing_id: int) -> dict[str, Any]:
         rows = (
@@ -323,7 +283,6 @@ class CatalogListingsRepository:
             .one()
         )
         listing_id = int(row["id"])
-        self._upsert_identity_map(listing_id, payload)
         missing_slugs: list[str] = []
         for attribute in payload.attributes:
             if not self.upsert_attribute(listing_id, attribute):
@@ -374,7 +333,6 @@ class CatalogListingsRepository:
                 ),
                 {"listing_id": listing_id},
             )
-        self._upsert_identity_map(listing_id, payload)
         missing_slugs: list[str] = []
         for attribute in payload.attributes:
             if not self.upsert_attribute(listing_id, attribute):
@@ -574,33 +532,6 @@ class CatalogListingsRepository:
             },
         )
         return int(result.rowcount or 0)
-
-    def _upsert_identity_map(self, listing_id: int, payload: CatalogListingPayload) -> None:
-        if not self.has_sync_listing_map():
-            return
-        self.session.execute(
-            text(
-                """
-                INSERT INTO sync_listing_map (
-                  source, user_id, category_id, external_id, listing_id, created_at, updated_at
-                )
-                VALUES (
-                  :source, :user_id, :category_id, :external_id, :listing_id, NOW(), NOW()
-                )
-                ON CONFLICT (source, user_id, category_id, external_id)
-                DO UPDATE SET
-                  listing_id = EXCLUDED.listing_id,
-                  updated_at = NOW()
-                """
-            ),
-            {
-                "source": payload.source,
-                "user_id": payload.user_id,
-                "category_id": payload.category_id,
-                "external_id": payload.external_id,
-                "listing_id": listing_id,
-            },
-        )
 
     def _resolve_attribute_option_id(self, payload: CatalogAttributePayload) -> int | None:
         if payload.option_old_mysql_id not in (None, ""):

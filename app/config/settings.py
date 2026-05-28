@@ -210,67 +210,6 @@ class Settings(BaseSettings):
         validation_alias="SYNC_CATALOG_USER_ID_KIA",
     )
 
-    sync_catalog_phones_autohub: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_AUTOHUB",
-    )
-    sync_catalog_phones_autoland: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_AUTOLAND",
-    )
-    sync_catalog_phones_shredder: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_SHREDDER",
-    )
-    sync_catalog_phones_okayamaomsk: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_OKAYAMAOMSK",
-    )
-    sync_catalog_phones_banzaimotors: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_BANZAIMOTORS",
-    )
-    sync_catalog_phones_bavaria: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_BAVARIA",
-    )
-    sync_catalog_phones_shinabar: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_SHINABAR",
-    )
-    sync_catalog_phones_avtoinstall: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_AVTOINSTALL",
-    )
-    sync_catalog_phones_allmotors: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_ALLMOTORS",
-    )
-    sync_catalog_phones_autoshina: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_AUTOSHINA",
-    )
-    sync_catalog_phones_detalkg: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_DETALKG",
-    )
-    sync_catalog_phones_toyota: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_TOYOTA",
-    )
-    sync_catalog_phones_toyota_tradein: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_TOYOTA_TRADEIN",
-    )
-    sync_catalog_phones_lexus: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_LEXUS",
-    )
-    sync_catalog_phones_kia: str | None = Field(
-        default=None,
-        validation_alias="SYNC_CATALOG_PHONES_KIA",
-    )
-
     # Backward-compatible aliases from the first skeleton. They are not used as old DB business
     # sources, but keeping them harmlessly supports existing local env files.
     old_database_url: str | None = Field(default=None, validation_alias="OLD_DATABASE_URL")
@@ -308,13 +247,12 @@ class Settings(BaseSettings):
         return getattr(self, field_name, None) or self.sync_catalog_user_id
 
     def phones_for_provider(self, provider: str) -> list[str]:
-        field_name = f"sync_catalog_phones_{provider.lower().replace('-', '_')}"
-        raw = getattr(self, field_name, None)
-        if raw in (None, ""):
-            raw = self.sync_catalog_phones
-        if not raw:
+        _ = provider
+        if not self.sync_catalog_phones:
             return []
-        return [phone.strip() for phone in str(raw).split(",") if phone.strip()]
+        return [
+            phone.strip() for phone in str(self.sync_catalog_phones).split(",") if phone.strip()
+        ]
 
 
 @lru_cache

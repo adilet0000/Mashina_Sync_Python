@@ -35,6 +35,7 @@ from app.providers import (
 from app.repositories.catalog_listings import CatalogListingsRepository, CatalogWritesDisabledError
 from app.services.diff_service import DiffService, SyncPlan
 from app.services.verification_service import VerificationService
+from app.utils.identity import listing_identity_key
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +166,25 @@ class SyncService:
                 user_id=user_id,
                 category_ids=category_ids,
             )
+            duplicate_external_ids = set(getattr(repository, "last_duplicate_external_ids", ()))
+            if duplicate_external_ids:
+                result.failed_count += len(duplicate_external_ids)
+                result.errors.extend(
+                    "duplicate current listing identity found; skipped ambiguous sync "
+                    f"user_id={user_id} identity_key={identity_key}"
+                    for identity_key in sorted(duplicate_external_ids)
+                )
+                payloads = tuple(
+                    payload
+                    for payload in payloads
+                    if listing_identity_key(payload.category_id, payload.external_id)
+                    not in duplicate_external_ids
+                )
+                current = {
+                    identity_key: listing
+                    for identity_key, listing in current.items()
+                    if identity_key not in duplicate_external_ids
+                }
             plan = self.diff_service.diff(payloads, current)
             self._apply_plan_counts(result, plan)
             result.diff_samples = self._diff_samples(plan)

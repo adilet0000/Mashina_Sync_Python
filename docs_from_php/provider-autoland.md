@@ -61,13 +61,12 @@ A-1,A-2,A-3
 Catalog idempotency key:
 
 ```text
-source + user_id + category_id + external_id
+user_id + category_id + listing_attributes.external_id
 ```
 
 For Autoland:
 
 ```text
-source = autoland
 category_id = 35
 legacy type_id = 30
 ```
@@ -95,13 +94,8 @@ condition = 2 only when:
 otherwise condition = 1
 ```
 
-Phones are read from:
-
-```env
-SYNC_CATALOG_PHONES_AUTOLAND
-```
-
-Fallback:
+Phones are read from provider data when available. If the provider row has no phone, the global
+fallback is used:
 
 ```env
 SYNC_CATALOG_PHONES

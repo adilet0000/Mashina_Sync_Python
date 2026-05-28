@@ -62,7 +62,7 @@ In `mashina_catalog_service`:
 - `listing_promotions`
 - plus service tables such as `comments`, `favorites`, `offers`, `complaints`, `banners`
 
-`sync_listing_map` does not exist.
+`sync_listing_map` does not exist and is not required by the approved implementation.
 
 ## Resolved Schema Questions
 
@@ -77,7 +77,7 @@ In `mashina_catalog_service`:
 | `type_id=30` mapping | Category `35` is `parts_supplies` under `parts`. | Current `30 -> 35` mapping is correct for generic parts. |
 | Price EAV duplication | Attribute `price` exists, but there are currently `0` `listing_attributes` rows for it. | Writing only `listings.price` is aligned with current data. |
 | Mileage format | Existing mileage rows use `value_text`, `value_number`, and `value_json={"value": "...", "suffix": "км"}`. | Current raw mileage handling should be adjusted before AutoCRM car write mode. |
-| `sync_listing_map` | Missing. | Add recommended migration or approve another provider identity strategy before real writes. |
+| Provider identity table | No dedicated sync table exists. | Approved strategy is `user_id + category_id + listing_attributes.external_id`; duplicates in that scope are skipped. |
 
 ## Provider Identity Risk
 
@@ -97,12 +97,12 @@ Observed stored values:
 
 Therefore `source` should not be used to store provider names like `autoland` or `toyota`.
 
-Safe recommendation before enabling real writes:
+Approved recommendation before enabling real writes:
 
-1. Add `sync_listing_map(source, user_id, category_id, external_id, listing_id)` and use it for
-   provider idempotency.
-2. If DB migration is not allowed, use `user_id + category_id + external_id` only and do not
-   deactivate rows unless the run is restricted to listings created by the Python sync.
+1. Use `user_id + category_id + listing_attributes.external_id` for idempotency.
+2. Do not use the catalog `source` attribute for provider names.
+3. If duplicates already exist in the approved identity scope, skip that identity and clean it up
+   manually before enabling broad deactivation.
 
 ## Tire/Wheel Attribute Gap
 

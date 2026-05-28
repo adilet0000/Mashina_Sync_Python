@@ -1,28 +1,17 @@
 # Manual Catalog DB Verification
 
-Replace `:provider`, `:external_id`, `:user_id`, `:category_id`, and `:listing_id` before running.
+Replace `:external_id`, `:user_id`, `:category_id`, and `:listing_id` before running.
 
-Important: read-only inspection on 2026-05-26 showed that catalog attribute `source`
-is numeric and is not a provider-name field. Do not verify provider ownership through
-`attributes.slug = 'source'`.
+Final sync identity does not use `sync_listing_map`. Current listings are matched by:
 
-The safest provider lookup requires the recommended `sync_listing_map` table. Until
-that table exists, fallback checks can only search by `user_id + category_id + external_id`
-and cannot prove provider ownership if several providers share the same user/category.
-
-## Find Listing By Provider And External ID With sync_listing_map
-
-```sql
-SELECT l.*, m.source AS provider, m.external_id
-FROM sync_listing_map m
-JOIN listings l ON l.id = m.listing_id
-WHERE m.source = :provider
-  AND m.external_id = :external_id
-  AND m.user_id = :user_id
-  AND m.category_id = :category_id;
+```text
+listings.user_id + listings.category_id + listing_attributes.external_id
 ```
 
-## Fallback: Find Listing By External ID
+Important: catalog attribute `source` is numeric and is not a provider-name field. Do not verify
+provider ownership through `attributes.slug = 'source'`.
+
+## Find Listing By External ID
 
 ```sql
 SELECT l.*
@@ -74,25 +63,7 @@ WHERE listing_id = :listing_id
 ORDER BY priority ASC, id ASC;
 ```
 
-## View Inactive Provider Listings With sync_listing_map
-
-```sql
-SELECT
-  l.id,
-  l.title,
-  l.status,
-  l.updated_at,
-  m.external_id
-FROM sync_listing_map m
-JOIN listings l ON l.id = m.listing_id
-WHERE m.source = :provider
-  AND m.user_id = :user_id
-  AND m.category_id = :category_id
-  AND l.status = :inactive_status
-ORDER BY l.updated_at DESC;
-```
-
-## Fallback: View Inactive Listings By User/Category
+## View Inactive Listings For User/Category
 
 ```sql
 SELECT
@@ -111,23 +82,7 @@ WHERE a_ext.slug = 'external_id'
 ORDER BY l.updated_at DESC;
 ```
 
-## Check Duplicate External IDs With sync_listing_map
-
-```sql
-SELECT
-  m.source AS provider,
-  m.user_id,
-  m.category_id,
-  m.external_id,
-  COUNT(*) AS duplicate_count,
-  ARRAY_AGG(m.listing_id ORDER BY m.listing_id) AS listing_ids
-FROM sync_listing_map m
-GROUP BY m.source, m.user_id, m.category_id, m.external_id
-HAVING COUNT(*) > 1
-ORDER BY duplicate_count DESC;
-```
-
-## Fallback: Check Duplicate External IDs By User/Category
+## Check Duplicate External IDs
 
 ```sql
 SELECT
@@ -164,16 +119,4 @@ SELECT id, listing_id, external_url, hash, status, priority
 FROM images
 WHERE COALESCE(external_url, '') = ''
    OR COALESCE(hash, '') = '';
-```
-
-## Optional sync_listing_map Check
-
-```sql
-SELECT source, user_id, category_id, external_id, listing_id
-FROM sync_listing_map
-WHERE source = :provider
-  AND user_id = :user_id
-  AND category_id = :category_id
-ORDER BY updated_at DESC
-LIMIT 50;
 ```

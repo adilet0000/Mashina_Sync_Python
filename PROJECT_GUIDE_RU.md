@@ -77,7 +77,7 @@ DELETE sync/images
 
 - `CATALOG_DATABASE_URL` - подключение к новой catalog DB;
 - `SYNC_CATALOG_USER_ID` или `SYNC_CATALOG_USER_ID_<PROVIDER>` - от имени какого catalog user создавать объявления;
-- `SYNC_CATALOG_PHONES` или `SYNC_CATALOG_PHONES_<PROVIDER>` - телефоны для объявлений;
+- `SYNC_CATALOG_PHONES` - общий fallback телефон для объявлений, если provider не отдал телефон;
 - `SYNC_PROVIDER_*_FEED_URL` - URL фида provider-а, если его надо переопределить;
 - safety flags для запрета случайной записи.
 
@@ -210,7 +210,7 @@ Package marker.
 - HTTP timeout;
 - provider feed URL overrides;
 - provider-specific user ids;
-- provider-specific phones.
+- общий fallback phone через `SYNC_CATALOG_PHONES`.
 
 Важная деталь: пустые optional env значения игнорируются как `None`, чтобы строки вида `SYNC_CATALOG_USER_ID_AUTOLAND=` не ломали запуск.
 
@@ -755,10 +755,10 @@ Package marker.
 - deactivate listing;
 - upsert listing attributes;
 - image insert/deactivate helpers;
-- поддержку `sync_listing_map`, если таблица появится;
+- поиск текущих объявлений по `user_id + category_id + external_id`;
 - fallback lookup через EAV `external_id`.
 
-Важная деталь: provider identity должен храниться в `sync_listing_map`. Catalog attribute `source` не является provider marker, поэтому provider нельзя писать в EAV `source`.
+Важная деталь: текущие объявления ищутся по `listings.user_id + listings.category_id + listing_attributes.external_id`. Catalog attribute `source` не используется как provider marker.
 
 ### `app/repositories/catalog_references.py`
 
@@ -977,7 +977,7 @@ CSV fixture для Autoland parser tests.
 - `db-readonly-inspection.md` - результаты read-only осмотра новой DB;
 - `final-open-questions.md` - что еще надо подтвердить перед writes;
 - `manual-db-verification.md` - SQL для ручной проверки;
-- `recommended-db-migrations.sql` - рекомендуемая миграция `sync_listing_map`, не применять автоматически;
+- `recommended-db-migrations.sql` - зафиксировано, что новые таблицы для identity не нужны;
 - `provider-coverage.md` - покрытие provider-ов;
 - `php-to-python-replacement-map.md` - какие PHP commands чем заменены;
 - `provider-*.md` - описание каждого provider-а.
@@ -1068,20 +1068,17 @@ SYNC_LOG_LEVEL=INFO
 
 ```env
 SYNC_CATALOG_USER_ID_AUTOLAND=123
-SYNC_CATALOG_PHONES_AUTOLAND=+996XXXXXXXXX
-
 SYNC_CATALOG_USER_ID_TOYOTA=124
-SYNC_CATALOG_PHONES_TOYOTA=+996YYYYYYYYY
 ```
 
 ## Что нужно решить перед production write
 
 Главный нерешенный вопрос: provider identity.
 
-В новой production DB нужно иметь таблицу `sync_listing_map`, потому что attribute `source` не является provider marker. Именно эта таблица надежно связывает:
+В финальной схеме договорились не добавлять новую таблицу. Sync связывает объявления через существующие поля:
 
 ```text
-provider + user_id + category_id + external_id -> listing_id
+user_id + category_id + external_id -> listing_id
 ```
 
 без отдельной таблицы сложно.
@@ -1173,4 +1170,4 @@ list-providers: works
 
 Проект готов для dry-run проверки с catalog DB.
 
-Для production write нужно сначала подтвердить provider identity strategy, желательно через `sync_listing_map`.
+Для production write нужно подтвердить, что каждый provider работает в своем `user_id/category_id` scope, а `external_id` уникален внутри этого scope.

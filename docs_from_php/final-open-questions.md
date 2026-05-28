@@ -8,7 +8,7 @@ the catalog owner approves the safe default.
 
 | Topic | Still unconfirmed | Safe default implemented |
 |---|---|---|
-| Provider identity | `source` attr is not a provider field; it is numeric (`value_number=1/2`). There is no `sync_listing_map`. | Do not enable broad real writes/deactivation until `sync_listing_map` is added or another provider marker is approved. |
+| Provider identity | Resolved by curator/PHP author: no new sync table. `source` attr is not a provider field and is not used. | Match by `user_id + category_id + listing_attributes.external_id`; skip ambiguous duplicates instead of updating a random row. |
 | `images.status` business meaning | Existing values are `5`, `3`, `1`, `0`, but meaning is not documented here. | Keep `SYNC_CATALOG_IMAGE_STATUS` and inactive image status configurable. |
 | `mileage.value_json` | Shape is now observed: `{"value": "...", "suffix": "км"}`. Python still needs exact car-write formatting before AutoCRM writes. | Keep AutoCRM car writes behind dry-run/limited verification until mileage formatting is aligned. |
 | Hard delete policy | Whether hard delete is ever allowed for disappeared provider ads. | Never hard deletes provider listings; deactivates with `SYNC_CATALOG_INACTIVE_STATUS`. |

@@ -35,7 +35,7 @@ def _settings() -> Settings:
     return Settings(
         CATALOG_DATABASE_URL="postgresql://user:pass@example.test:5432/catalog",
         SYNC_CATALOG_USER_ID=77,
-        SYNC_CATALOG_PHONES_AUTOLAND="+996555000111",
+        SYNC_CATALOG_PHONES="+996555000111",
         SYNC_DRY_RUN=1,
         SYNC_ALLOW_CATALOG_WRITES=0,
     )

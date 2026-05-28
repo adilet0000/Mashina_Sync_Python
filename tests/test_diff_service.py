@@ -3,6 +3,7 @@ from decimal import Decimal
 from app.dto import CatalogAttributePayload, CatalogImagePayload, CatalogListingPayload
 from app.repositories.catalog_listings import ExistingImage, ExistingListing
 from app.services.diff_service import DiffService
+from app.utils.identity import listing_identity_key
 
 
 def _payload(price: Decimal = Decimal("100")) -> CatalogListingPayload:
@@ -62,19 +63,22 @@ def test_diff_marks_insert_when_listing_missing() -> None:
 
 
 def test_diff_marks_unchanged_when_payload_matches() -> None:
-    plan = DiffService().diff((_payload(),), {"A-1": _existing()})
+    plan = DiffService().diff((_payload(),), {listing_identity_key(35, "A-1"): _existing()})
     assert len(plan.unchanged) == 1
     assert not plan.update
 
 
 def test_diff_marks_update_when_nonvolatile_field_changes() -> None:
-    plan = DiffService().diff((_payload(price=Decimal("150")),), {"A-1": _existing()})
+    plan = DiffService().diff(
+        (_payload(price=Decimal("150")),),
+        {listing_identity_key(35, "A-1"): _existing()},
+    )
     assert len(plan.update) == 1
     assert "price" in plan.update[0].changed_fields
 
 
 def test_diff_detects_missing_current_listing() -> None:
-    plan = DiffService().diff((), {"A-1": _existing()})
+    plan = DiffService().diff((), {listing_identity_key(35, "A-1"): _existing()})
     assert len(plan.deactivate) == 1
 
 
@@ -96,7 +100,7 @@ def test_diff_treats_decimal_and_int_attribute_values_as_equal() -> None:
         {"external_id": "A-1", "condition": Decimal("1")},
     )
 
-    plan = DiffService().diff((payload,), {"A-1": existing})
+    plan = DiffService().diff((payload,), {listing_identity_key(35, "A-1"): existing})
 
     assert len(plan.unchanged) == 1
     assert not plan.update
@@ -108,7 +112,7 @@ def test_sync_result_counts_images_for_inserted_and_deactivated_listings() -> No
 
     old_listing = _existing()
     object.__setattr__(old_listing, "external_id", "OLD-1")
-    plan = DiffService().diff((_payload(),), {"OLD-1": old_listing})
+    plan = DiffService().diff((_payload(),), {listing_identity_key(35, "OLD-1"): old_listing})
     result = SyncResult(provider="autohub", dry_run=True, verify=False)
 
     service = SyncService.__new__(SyncService)
@@ -118,3 +122,17 @@ def test_sync_result_counts_images_for_inserted_and_deactivated_listings() -> No
     assert result.deactivated_count == 1
     assert result.image_inserted_count == 1
     assert result.image_deactivated_count == 1
+
+
+def test_diff_identity_includes_category_id() -> None:
+    payload = _payload()
+    other_category = _existing()
+    object.__setattr__(other_category, "category_id", 36)
+
+    plan = DiffService().diff(
+        (payload,),
+        {listing_identity_key(36, "A-1"): other_category},
+    )
+
+    assert len(plan.insert) == 1
+    assert len(plan.deactivate) == 1

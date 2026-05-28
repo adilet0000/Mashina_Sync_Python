@@ -26,9 +26,9 @@ Read-only inspection was performed on 2026-05-26. Results are summarized in
 
 | Area | Question | Why it matters | Safe assumption until confirmed |
 |---|---|---|---|
-| Provider/source storage | Is there an existing table/column/attribute for provider name/source? | `external_id` alone can collide across providers. | Propose `sync_listing_map`; otherwise namespace external ids or use provider-specific users/categories with advisory lock. |
-| New sync table allowed | Can we add `sync_listing_map` or a partial unique index? | Strong duplicate prevention requires DB-level uniqueness. | Keep write implementation behind dry-run until approved. |
-| Unique key scope | Should uniqueness be `(provider, external_id)` or `(provider, category_id, external_id)`? | Some feeds might reuse article ids across categories. | Use `(provider, category_id, external_id)` unless provider guarantees global ids. |
+| Provider/source storage | Resolved: do not use catalog `source` attr for provider names. | `source` is a numeric catalog attribute, not provider marker. | Provider name remains an application/runtime label only. |
+| New sync table allowed | Resolved: do not add a new sync table. | The catalog already stores listing identity via EAV `external_id`. | Match by `user_id + category_id + listing_attributes.external_id`. |
+| Unique key scope | Resolved: uniqueness is `user_id + category_id + external_id`. | Same article ids may appear across categories. | Detect duplicates in that scope and skip ambiguous rows. |
 | Grouped legacy external ids | Should grouped comma-joined external ids stay as legacy behavior? | Grouping changes can create new identities and disable old grouped rows. | Preserve legacy grouping for equivalent behavior, but log grouping decisions. |
 | Missing/invalid external id | Should any provider allow fallback keys? | Bad keys create duplicates. | Skip records with missing external id. |
 

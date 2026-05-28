@@ -52,7 +52,7 @@ Target DB is assumed to be the catalog service schema.
 | `customs` | attr `is_customs_cleared` | needs business confirmation |
 | `vincode` | attr `vincode` | direct text |
 | `old_price` | attr `old_price` | numeric |
-| `phone` | attr `phone` | from legacy user or `SYNC_CATALOG_PHONES_*` |
+| `phone` | attr `phone` | from provider payload or global `SYNC_CATALOG_PHONES` fallback |
 
 ## Type Mapping
 
@@ -105,10 +105,10 @@ These must be resolved before full tire/wheel migration:
 
 ## Idempotency Strategy
 
-Preferred key:
+Approved key:
 
 ```text
-source/client + user_id + category_id + external_id
+user_id + category_id + listing_attributes.external_id
 ```
 
 Current catalog schema has `external_id` as an EAV attribute, so current lookup joins:
@@ -118,13 +118,9 @@ listings
   -> listing_attributes external_id
 ```
 
-For a stronger production design, add a dedicated sync mapping table:
-
-```text
-sync_listing_map(source, user_id, category_id, external_id, listing_id)
-```
-
-with unique index on `(source, user_id, category_id, external_id)`.
+No new sync table is required. If multiple catalog rows have the same
+`user_id + category_id + external_id`, Python sync treats them as ambiguous duplicates and skips
+that identity instead of updating a random listing.
 
 ## Python Architecture Proposal
 
@@ -211,4 +207,3 @@ Provider feed
 - Tire/wheel fields are not represented as catalog attributes.
 - Some provider parsers are fragile HTML scrapers.
 - `KiaSyncCommand` contains debug behavior in legacy code.
-

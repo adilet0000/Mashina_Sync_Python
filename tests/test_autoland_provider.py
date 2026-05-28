@@ -9,7 +9,7 @@ from app.providers.autoland import AutolandProviderAdapter
 def _settings() -> Settings:
     return Settings(
         SYNC_CATALOG_USER_ID=77,
-        SYNC_CATALOG_PHONES_AUTOLAND="+996555000111,+996555000222",
+        SYNC_CATALOG_PHONES="+996555000111,+996555000222",
     )
 
 

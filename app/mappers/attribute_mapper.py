@@ -1,3 +1,4 @@
+import re
 from decimal import Decimal
 from typing import Any
 
@@ -43,15 +44,25 @@ def _attribute_payload(slug: str, value: Any) -> CatalogAttributePayload | None:
         boolean_value = _to_boolish(value)
         return CatalogAttributePayload(slug=slug, value=boolean_value)
 
+    if slug == "mileage":
+        return CatalogAttributePayload(slug=slug, value=_mileage_json(value))
+
     if slug in REFERENCE_ATTRIBUTE_SLUGS:
         if _is_int_like(value):
             return CatalogAttributePayload(slug=slug, value=value, option_old_mysql_id=value)
         return CatalogAttributePayload(slug=slug, value=value, option_value=str(value))
 
-    if slug in {"old_price", "mileage", "year"} and not isinstance(value, Decimal):
+    if slug in {"old_price", "year"} and not isinstance(value, Decimal):
         return CatalogAttributePayload(slug=slug, value=value)
 
     return CatalogAttributePayload(slug=slug, value=value)
+
+
+def _mileage_json(value: Any) -> dict[str, str]:
+    text = str(value).strip()
+    match = re.search(r"\d[\d\s,.]*", text)
+    mileage_value = match.group(0).replace(" ", "").replace(",", ".").strip(".") if match else text
+    return {"value": mileage_value, "suffix": "км"}
 
 
 def map_legacy_attributes(ad: LegacyAd) -> tuple[CatalogAttributePayload, ...]:

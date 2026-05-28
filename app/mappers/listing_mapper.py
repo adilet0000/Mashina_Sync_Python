@@ -8,6 +8,16 @@ from app.dto import CatalogAttributePayload, CatalogListingPayload, LegacyAd
 from app.mappers.attribute_mapper import map_legacy_attributes
 from app.mappers.image_mapper import map_images
 
+TIRE_WHEEL_SPEC_LABELS: tuple[tuple[str, str], ...] = (
+    ("tire_width", "Ширина шины"),
+    ("tire_height", "Высота шины"),
+    ("tire_size", "Диаметр шины"),
+    ("tire_type", "Сезонность"),
+    ("wheel_type", "Тип диска"),
+    ("wheel_size", "Диаметр диска"),
+    ("wheel_pcd", "PCD диска"),
+)
+
 
 class ListingMapper:
     def __init__(self, settings: Settings) -> None:
@@ -20,6 +30,7 @@ class ListingMapper:
         )
         title = (ad.name or "").strip() or f"{ad.source} {ad.external_id}"
         description = (ad.description or "").strip() or title
+        description = self._append_tire_wheel_specs(description, ad)
         phone_values = ad.phones or tuple(self.settings.phones_for_provider(ad.source))
         attribute_payloads = list(map_legacy_attributes(ad))
         if phone_values:
@@ -46,3 +57,18 @@ class ListingMapper:
             ),
             raw_legacy_ad=ad.raw,
         )
+
+    def _append_tire_wheel_specs(self, description: str, ad: LegacyAd) -> str:
+        lines: list[str] = []
+        description_lower = description.lower()
+        for field_name, label in TIRE_WHEEL_SPEC_LABELS:
+            value = getattr(ad, field_name)
+            if value in (None, ""):
+                continue
+            if label.lower() in description_lower:
+                continue
+            lines.append(f"{label}: {value}")
+
+        if not lines:
+            return description
+        return f"{description}\n\nХарактеристики:\n" + "\n".join(lines)

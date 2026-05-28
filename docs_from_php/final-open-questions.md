@@ -10,9 +10,9 @@ the catalog owner approves the safe default.
 |---|---|---|
 | Provider identity | Resolved by curator/PHP author: no new sync table. `source` attr is not a provider field and is not used. | Match by `user_id + category_id + listing_attributes.external_id`; skip ambiguous duplicates instead of updating a random row. |
 | `images.status` business meaning | Existing values are `5`, `3`, `1`, `0`, but meaning is not documented here. | Keep `SYNC_CATALOG_IMAGE_STATUS` and inactive image status configurable. |
-| `mileage.value_json` | Shape is now observed: `{"value": "...", "suffix": "км"}`. Python still needs exact car-write formatting before AutoCRM writes. | Keep AutoCRM car writes behind dry-run/limited verification until mileage formatting is aligned. |
+| `mileage.value_json` | Resolved from DB inspection: `{"value": "...", "suffix": "км"}`. | Python now writes mileage in this JSON shape. |
 | Hard delete policy | Whether hard delete is ever allowed for disappeared provider ads. | Never hard deletes provider listings; deactivates with `SYNC_CATALOG_INACTIVE_STATUS`. |
-| Tire/wheel dimensions | Tire/wheel attributes are missing in catalog DB. | Preserve specs in title/description and DTO; structured tire/wheel EAV requires schema/mapping decision. |
+| Tire/wheel dimensions | Tire/wheel attributes are missing in catalog DB. | Python writes structured attrs only if slugs exist; otherwise specs are preserved in listing description. Structured search/filtering still requires schema/mapping decision. |
 | Live provider markup | HTML selectors for Allmotors, Autoshina, and DetalKg tire pages may drift. | Fixture-tested parsers with legacy selectors; live dry-run should be run before writes. |
 | Toyota Trade-In currency rate | Old PHP read dealer currency rate from old internal API. | Uses `SYNC_PROVIDER_TOYOTA_TRADEIN_CURRENCY_RATE`, default `1`; no old API dependency. |
 

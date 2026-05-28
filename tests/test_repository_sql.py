@@ -72,8 +72,12 @@ def test_current_lookup_identity_includes_category_and_skips_ambiguous_duplicate
     repository.session = FakeCurrentSession()
     repository.settings = SimpleNamespace()
     repository.last_duplicate_external_ids = ()
-    repository.get_listing_attributes = lambda listing_id: {"external_id": "A-1"}  # type: ignore[method-assign]
-    repository.get_listing_images = lambda listing_id: []  # type: ignore[method-assign]
+    repository.get_listing_attributes_bulk = lambda listing_ids: {  # type: ignore[method-assign]
+        listing_id: {"external_id": "A-1"} for listing_id in listing_ids
+    }
+    repository.get_listing_images_bulk = lambda listing_ids: {  # type: ignore[method-assign]
+        listing_id: [] for listing_id in listing_ids
+    }
 
     current = repository.get_current_by_provider(
         provider="autoland",

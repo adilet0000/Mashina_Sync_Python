@@ -117,9 +117,20 @@ class CatalogListingsRepository:
                 tuple(sorted(duplicate_keys)),
             )
 
+        listing_ids = tuple(listing.id for listing in current.values())
+        attributes_by_listing_id = self.get_listing_attributes_bulk(listing_ids)
+        images_by_listing_id = self.get_listing_images_bulk(listing_ids)
         for listing in current.values():
-            object.__setattr__(listing, "attributes", self.get_listing_attributes(listing.id))
-            object.__setattr__(listing, "images", tuple(self.get_listing_images(listing.id)))
+            object.__setattr__(
+                listing,
+                "attributes",
+                attributes_by_listing_id.get(listing.id, {}),
+            )
+            object.__setattr__(
+                listing,
+                "images",
+                tuple(images_by_listing_id.get(listing.id, ())),
+            )
         return current
 
     def get_by_external_id(
@@ -207,11 +218,19 @@ class CatalogListingsRepository:
         return statement
 
     def get_listing_attributes(self, listing_id: int) -> dict[str, Any]:
+        return self.get_listing_attributes_bulk((listing_id,)).get(listing_id, {})
+
+    def get_listing_attributes_bulk(
+        self, listing_ids: tuple[int, ...]
+    ) -> dict[int, dict[str, Any]]:
+        if not listing_ids:
+            return {}
         rows = (
             self.session.execute(
                 text(
                     """
                     SELECT
+                      la.listing_id,
                       a.slug,
                       la.attribute_options_id,
                       la.value_text,
@@ -221,44 +240,63 @@ class CatalogListingsRepository:
                       la.value_json
                     FROM listing_attributes la
                     JOIN attributes a ON a.id = la.attribute_id
-                    WHERE la.listing_id = :listing_id
+                    WHERE la.listing_id IN :listing_ids
                     """
-                ),
-                {"listing_id": listing_id},
+                ).bindparams(bindparam("listing_ids", expanding=True)),
+                {"listing_ids": listing_ids},
             )
             .mappings()
             .all()
         )
-        return {str(row["slug"]): self._attribute_value_from_row(row) for row in rows}
+        grouped: dict[int, dict[str, Any]] = {}
+        for row in rows:
+            listing_id = int(row["listing_id"])
+            grouped.setdefault(listing_id, {})[str(row["slug"])] = self._attribute_value_from_row(
+                row
+            )
+        return grouped
 
     def get_listing_images(self, listing_id: int) -> list[ExistingImage]:
+        return self.get_listing_images_bulk((listing_id,)).get(listing_id, [])
+
+    def get_listing_images_bulk(
+        self, listing_ids: tuple[int, ...]
+    ) -> dict[int, list[ExistingImage]]:
+        if not listing_ids:
+            return {}
         rows = (
             self.session.execute(
                 text(
                     """
-                    SELECT id, external_url, hash, priority, status, user_id, is_blurred
+                    SELECT id, listing_id, external_url, hash, priority, status, user_id,
+                           is_blurred
                     FROM images
-                    WHERE listing_id = :listing_id
-                    ORDER BY priority ASC, id ASC
+                    WHERE listing_id IN :listing_ids
+                    ORDER BY listing_id ASC, priority ASC, id ASC
                     """
-                ),
-                {"listing_id": listing_id},
+                ).bindparams(bindparam("listing_ids", expanding=True)),
+                {"listing_ids": listing_ids},
             )
             .mappings()
             .all()
         )
-        return [
-            ExistingImage(
-                id=int(row["id"]),
-                external_url=str(row["external_url"]),
-                hash=str(row["hash"]),
-                priority=int(row["priority"] or 0),
-                status=row.get("status"),
-                user_id=int(row["user_id"]) if row.get("user_id") is not None else None,
-                is_blurred=bool(row["is_blurred"]) if row.get("is_blurred") is not None else None,
+        grouped: dict[int, list[ExistingImage]] = {}
+        for row in rows:
+            listing_id = int(row["listing_id"])
+            grouped.setdefault(listing_id, []).append(
+                ExistingImage(
+                    id=int(row["id"]),
+                    external_url=str(row["external_url"]),
+                    hash=str(row["hash"]),
+                    priority=int(row["priority"] or 0),
+                    status=row.get("status"),
+                    user_id=int(row["user_id"]) if row.get("user_id") is not None else None,
+                    is_blurred=bool(row["is_blurred"])
+                    if row.get("is_blurred") is not None
+                    else None,
+                )
             )
-            for row in rows
-        ]
+        return grouped
 
     def insert_listing(self, payload: CatalogListingPayload) -> ListingWriteOutcome:
         assert_catalog_writes_allowed(self.settings)

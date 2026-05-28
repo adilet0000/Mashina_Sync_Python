@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from app.dto import CatalogImagePayload, CatalogListingPayload
+from app.dto import CatalogAttributePayload, CatalogImagePayload, CatalogListingPayload
 from app.repositories.catalog_listings import ExistingImage, ExistingListing
 from app.services.verification_service import VerificationService
 
@@ -34,6 +34,12 @@ def _payload() -> CatalogListingPayload:
         price=Decimal("1200"),
         currency="KGS",
         status="active",
+        attributes=(
+            CatalogAttributePayload(
+                slug="mileage",
+                value={"value": "12345", "suffix": "км"},
+            ),
+        ),
         images=(
             CatalogImagePayload(
                 external_url="https://img.test/1.jpg",
@@ -59,7 +65,10 @@ def _listing(status: str = "active") -> ExistingListing:
         price=Decimal("1200"),
         currency="KGS",
         status=status,
-        attributes={"external_id": "A-1"},
+        attributes={
+            "external_id": "A-1",
+            "mileage": {"value": "12345", "suffix": "км"},
+        },
         images=(
             ExistingImage(
                 id=1,

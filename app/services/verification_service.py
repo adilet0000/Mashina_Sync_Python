@@ -198,6 +198,8 @@ class VerificationService:
             return str(value.normalize())
         if isinstance(value, int | float):
             return str(Decimal(str(value)).normalize())
+        if isinstance(value, dict):
+            return value
         if isinstance(value, list | tuple):
             return tuple(value)
         if value in (None, ""):

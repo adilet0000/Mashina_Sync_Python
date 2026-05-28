@@ -1,6 +1,7 @@
 import logging
 from collections.abc import Iterable
 from contextlib import nullcontext
+from dataclasses import replace
 from typing import Any, Protocol
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -161,6 +162,9 @@ class SyncService:
 
         with self.session_factory() as session:
             repository = self.repository_factory(session, self.settings)
+            payloads = self._filter_supported_attributes(payloads, repository, result)
+            if not payloads:
+                return result
             current = repository.get_current_by_provider(
                 provider=provider,
                 user_id=user_id,
@@ -298,6 +302,47 @@ class SyncService:
                 result.skipped_count += 1
                 result.warnings.append(f"skipped external_id={ad.external_id}: {exc}")
         return tuple(payloads)
+
+    def _filter_supported_attributes(
+        self,
+        payloads: tuple[CatalogListingPayload, ...],
+        repository: CatalogListingsRepository,
+        result: SyncResult,
+    ) -> tuple[CatalogListingPayload, ...]:
+        reference_resolver = getattr(repository, "reference_resolver", None)
+        if reference_resolver is None:
+            return payloads
+
+        missing_optional_slugs: set[str] = set()
+        filtered_payloads: list[CatalogListingPayload] = []
+
+        for payload in payloads:
+            supported_attributes = []
+            skip_payload = False
+            for attribute in payload.attributes:
+                attribute_id = reference_resolver.resolve_attribute_id_by_slug(attribute.slug)
+                if attribute_id is not None:
+                    supported_attributes.append(attribute)
+                    continue
+                if attribute.slug == "external_id":
+                    result.failed_count += 1
+                    result.errors.append(
+                        "required catalog attribute slug='external_id' is missing; "
+                        f"skipped external_id={payload.external_id}"
+                    )
+                    skip_payload = True
+                    break
+                missing_optional_slugs.add(attribute.slug)
+
+            if not skip_payload:
+                filtered_payloads.append(replace(payload, attributes=tuple(supported_attributes)))
+
+        for slug in sorted(missing_optional_slugs):
+            result.warnings.append(
+                f"catalog attribute slug={slug!r} is missing; preserving provider value "
+                "only in listing core fields/description when available"
+            )
+        return tuple(filtered_payloads)
 
     def _apply_plan_counts(self, result: SyncResult, plan: SyncPlan) -> None:
         result.inserted_count = len(plan.insert)

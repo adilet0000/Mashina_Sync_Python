@@ -48,7 +48,7 @@ Target DB is assumed to be the catalog service schema.
 | `modification` | attr `modification` | option lookup by `old_mysql_id` and parent |
 | `steering_wheel` | attr `steering_wheel` | value lookup |
 | `color` | attr `color` | value lookup |
-| `mileage` | attr `mileage` | JSON/raw wrapper; final format needs confirmation |
+| `mileage` | attr `mileage` | `value_json={"value": "...", "suffix": "км"}` |
 | `customs` | attr `is_customs_cleared` | needs business confirmation |
 | `vincode` | attr `vincode` | direct text |
 | `old_price` | attr `old_price` | numeric |
@@ -97,10 +97,14 @@ The inspected catalog schema has no direct attributes for:
 - `wheel_size`
 - `wheel_pcd`
 
-These must be resolved before full tire/wheel migration:
+Structured search/filtering for these fields still requires schema support. Until then Python
+preserves the values in listing description and attempts EAV writes only when matching attribute
+slugs exist.
+
+Long-term options:
 
 1. add catalog attributes;
-2. store in title/description;
+2. keep them as description-only fields;
 3. confirm another service owns these fields.
 
 ## Idempotency Strategy

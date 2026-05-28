@@ -19,7 +19,7 @@ Read-only inspection was performed on 2026-05-26. Results are summarized in
 | Category slug/id mapping | Are category ids `1`, `35`, `24`, `37`, `33`, `26` stable? | Wrong category ids put listings into wrong catalog section. | Keep mapping in config and require verification against DB. |
 | `type_id=30` mapping | Should old parts type `30` map to category `35 parts_supplies` or a parent parts category? | Most providers are parts providers. | Use current prototype mapping `30 -> 35` only in dry-run until confirmed. |
 | Tire/wheel attributes | Do catalog attributes exist for width/height/size/type/PCD? | Tire/wheel providers cannot be fully represented without these fields. | Preserve specs in title/description and mark structured fields as unmapped until confirmed. |
-| `mileage` format | What JSON shape is expected for mileage? | Current prototype stores `{"raw": value}`. | Keep raw JSON wrapper in dry-run; confirm before car writes. |
+| `mileage` format | Resolved from DB inspection: `{"value": "...", "suffix": "км"}`. | Python writes this `value_json` shape for new mileage values. |
 | `is_customs_cleared` type | Is it an option attr or boolean attr? | Current prototype treats it like option lookup. | Block real AutoCRM writes until attribute type is confirmed. |
 
 ## Provider Identity And Idempotency

@@ -66,7 +66,7 @@ error and skips that identity. It does not update a random duplicate.
 | `modification` | `listing_attributes.modification` | Option/value lookup |
 | `steering_wheel` | `listing_attributes.steering_wheel` | Option/value lookup |
 | `color` | `listing_attributes.color` | Option/value lookup |
-| `mileage` | `listing_attributes.mileage` | JSON/value format still needs car-write verification |
+| `mileage` | `listing_attributes.mileage` | Stored as `value_json={"value": "...", "suffix": "км"}` |
 | `customs` | `listing_attributes.is_customs_cleared` | Depends on catalog attribute type |
 | `vincode` | `listing_attributes.vincode` | Direct text |
 | `old_price` | `listing_attributes.old_price` | Numeric |
@@ -75,6 +75,10 @@ error and skips that identity. It does not update a random duplicate.
 
 Missing attribute slugs are logged and skipped, except `external_id`: missing `external_id`
 attribute is a hard error because idempotency depends on it.
+
+Tire/wheel specs are also appended to `listings.description` as a fallback, because the inspected
+catalog DB does not currently have all structured tire/wheel attribute slugs. If those slugs are
+added later, the same payload will also write structured EAV attributes.
 
 ## Upsert Behavior
 

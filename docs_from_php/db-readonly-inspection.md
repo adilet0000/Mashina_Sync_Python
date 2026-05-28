@@ -76,7 +76,7 @@ In `mashina_catalog_service`:
 | Target category ids | Confirmed: `1=car`, `24=tires`, `26=commercial_parts`, `33=accessories`, `35=parts_supplies`, `37=wheels`. | Current old `type_id` mapping is aligned with DB categories. |
 | `type_id=30` mapping | Category `35` is `parts_supplies` under `parts`. | Current `30 -> 35` mapping is correct for generic parts. |
 | Price EAV duplication | Attribute `price` exists, but there are currently `0` `listing_attributes` rows for it. | Writing only `listings.price` is aligned with current data. |
-| Mileage format | Existing mileage rows use `value_text`, `value_number`, and `value_json={"value": "...", "suffix": "км"}`. | Current raw mileage handling should be adjusted before AutoCRM car write mode. |
+| Mileage format | Existing mileage rows use `value_text`, `value_number`, and `value_json={"value": "...", "suffix": "км"}`. | Python writes new mileage values as `value_json={"value": "...", "suffix": "км"}`. |
 | Provider identity table | No dedicated sync table exists. | Approved strategy is `user_id + category_id + listing_attributes.external_id`; duplicates in that scope are skipped. |
 
 ## Provider Identity Risk
@@ -116,6 +116,7 @@ These attributes were not found:
 - `wheel_size`
 - `wheel_pcd`
 
-The current Python providers preserve tire/wheel specs in title/description and DTO fields, but
-structured catalog attributes cannot be written until the catalog schema provides target attributes
+Python providers preserve tire/wheel specs in title/description and DTO fields. Structured catalog
+attributes are written only if the target slugs exist in catalog `attributes`; otherwise those
+attribute writes are skipped with warnings.
 or an approved alternative mapping.

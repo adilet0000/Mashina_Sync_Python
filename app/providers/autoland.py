@@ -9,6 +9,7 @@ from typing import Any
 from app.config import Settings
 from app.dto import LegacyAd
 from app.providers.base import ProviderAdapter
+from app.providers.common import decode_feed_content
 from app.utils.http import HttpClientConfig, ProviderHttpClient
 
 AUTOLAND_FEED_URL = "https://baz-on.ru/export/c2095/9d8bf/autolandkg-parts.csv"
@@ -71,7 +72,7 @@ class AutolandProviderAdapter(ProviderAdapter):
         return tuple(ads)
 
     def parse_csv(self, content: bytes | str) -> tuple[AutolandRow, ...]:
-        text = self.decode_content(content)
+        text = decode_feed_content(content)
         reader = csv.DictReader(StringIO(text), delimiter=";")
         stats = AutolandParseStats()
         rows: list[AutolandRow] = []
@@ -176,16 +177,6 @@ class AutolandProviderAdapter(ProviderAdapter):
                 "rows": [row.raw for row in rows],
             },
         )
-
-    def decode_content(self, content: bytes | str) -> str:
-        if isinstance(content, str):
-            return content
-        for encoding in ("cp1251", "windows-1251", "utf-8-sig", "utf-8"):
-            try:
-                return content.decode(encoding)
-            except UnicodeDecodeError:
-                continue
-        return content.decode("cp1251", errors="replace")
 
     def split_photos(self, value: str | None) -> tuple[str, ...]:
         if not value:

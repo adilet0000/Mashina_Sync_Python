@@ -985,7 +985,7 @@ CSV fixture для Autoland parser tests.
 ## Как запустить проверки без БД
 
 ```bash
-cd /Users/adilet_orozaliev/VS_Code/internship/mashina_sync_python
+cd /.../mashina_sync_python
 source .venv/bin/activate
 
 python -m pytest -q

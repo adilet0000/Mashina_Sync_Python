@@ -57,11 +57,10 @@ def _attribute_payload(slug: str, value: Any) -> CatalogAttributePayload | None:
 def map_legacy_attributes(ad: LegacyAd) -> tuple[CatalogAttributePayload, ...]:
     payloads: list[CatalogAttributePayload] = [
         CatalogAttributePayload(slug="external_id", value=ad.external_id),
-        CatalogAttributePayload(slug="source", value=ad.source),
     ]
 
     for legacy_field, attribute_slug in LEGACY_FIELD_TO_ATTRIBUTE_SLUG.items():
-        if legacy_field in {"external_id", "source", "phone"}:
+        if legacy_field in {"external_id", "phone"}:
             continue
         value = getattr(ad, legacy_field)
         payload = _attribute_payload(attribute_slug, value)

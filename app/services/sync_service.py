@@ -284,8 +284,12 @@ class SyncService:
         result.updated_count = len(plan.update)
         result.unchanged_count = len(plan.unchanged)
         result.deactivated_count = len(plan.deactivate)
-        result.image_inserted_count = len(plan.image_insert)
-        result.image_deactivated_count = len(plan.image_deactivate)
+        result.image_inserted_count = len(plan.image_insert) + sum(
+            len(payload.images) for payload in plan.insert
+        )
+        result.image_deactivated_count = len(plan.image_deactivate) + sum(
+            len(listing.images) for listing in plan.deactivate
+        )
 
     def _write_plan_in_batches(
         self,

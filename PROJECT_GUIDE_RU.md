@@ -758,7 +758,7 @@ Package marker.
 - поддержку `sync_listing_map`, если таблица появится;
 - fallback lookup через EAV `external_id`.
 
-Важный риск: в текущей новой БД нет `sync_listing_map`, а attribute `source` не является provider marker. Поэтому для production-safe real write желательно добавить `sync_listing_map`.
+Важная деталь: provider identity должен храниться в `sync_listing_map`. Catalog attribute `source` не является provider marker, поэтому provider нельзя писать в EAV `source`.
 
 ### `app/repositories/catalog_references.py`
 
@@ -1078,7 +1078,7 @@ SYNC_CATALOG_PHONES_TOYOTA=+996YYYYYYYYY
 
 Главный нерешенный вопрос: provider identity.
 
-В новой DB нет таблицы `sync_listing_map`, а attribute `source` не является provider marker. Это значит, что надежно связать:
+В новой production DB нужно иметь таблицу `sync_listing_map`, потому что attribute `source` не является provider marker. Именно эта таблица надежно связывает:
 
 ```text
 provider + user_id + category_id + external_id -> listing_id
@@ -1092,7 +1092,7 @@ provider + user_id + category_id + external_id -> listing_id
 docs_from_php/recommended-db-migrations.sql
 ```
 
-Пока это не решено, безопасно делать:
+Пока это не применено/не подтверждено на целевой DB, безопасно делать:
 
 - tests;
 - healthcheck;

@@ -151,7 +151,7 @@ class CatalogListingsRepository:
 
         attributes = self.get_listing_attributes(listing_id)
         external_id = str(attributes.get("external_id") or "")
-        source = str(attributes.get("source") or "")
+        source = self.get_identity_source_for_listing(listing_id) or ""
         listing = ExistingListing(
             id=int(row["id"]),
             external_id=external_id,
@@ -203,7 +203,7 @@ class CatalogListingsRepository:
             SELECT
               l.id,
               ext_attr.value_text AS external_id,
-              source_attr.value_text AS source,
+              :source AS source,
               l.user_id,
               l.category_id,
               l.title,
@@ -217,12 +217,7 @@ class CatalogListingsRepository:
             JOIN attributes ext_def
               ON ext_def.id = ext_attr.attribute_id
              AND ext_def.slug = 'external_id'
-            JOIN listing_attributes source_attr ON source_attr.listing_id = l.id
-            JOIN attributes source_def
-              ON source_def.id = source_attr.attribute_id
-             AND source_def.slug = 'source'
             WHERE l.user_id = :user_id
-              AND source_attr.value_text = :source
               AND ext_attr.value_text IS NOT NULL
               {category_filter}
             """
@@ -230,6 +225,26 @@ class CatalogListingsRepository:
         if category_ids:
             statement = statement.bindparams(bindparam("category_ids", expanding=True))
         return statement
+
+    def get_identity_source_for_listing(self, listing_id: int) -> str | None:
+        if not self.has_sync_listing_map():
+            return None
+        row = (
+            self.session.execute(
+                text(
+                    """
+                    SELECT source
+                    FROM sync_listing_map
+                    WHERE listing_id = :listing_id
+                    LIMIT 1
+                    """
+                ),
+                {"listing_id": listing_id},
+            )
+            .mappings()
+            .first()
+        )
+        return str(row["source"]) if row else None
 
     def get_listing_attributes(self, listing_id: int) -> dict[str, Any]:
         rows = (
@@ -384,7 +399,7 @@ class CatalogListingsRepository:
         )
         attribute_id = self.reference_resolver.resolve_attribute_id_by_slug(payload.slug)
         if attribute_id is None:
-            if payload.slug in {"external_id", "source"}:
+            if payload.slug == "external_id":
                 raise RuntimeError(f"required catalog attribute slug={payload.slug!r} is missing")
             logger.warning("catalog attribute slug=%s is missing; skipping", payload.slug)
             return False
@@ -466,8 +481,7 @@ class CatalogListingsRepository:
             text(
                 """
                 UPDATE images
-                SET status = :inactive_status,
-                    updated_at = NOW()
+                SET status = :inactive_status
                 WHERE listing_id = :listing_id
                 """
             ),
@@ -503,8 +517,7 @@ class CatalogListingsRepository:
                     SET status = :status,
                         is_blurred = :is_blurred,
                         priority = :priority,
-                        external_url = :external_url,
-                        updated_at = NOW()
+                        external_url = :external_url
                     WHERE id = :id
                     """
                 ),
@@ -518,11 +531,11 @@ class CatalogListingsRepository:
                     """
                     INSERT INTO images (
                       listing_id, hash, status, is_blurred, priority, external_url, user_id,
-                      created_at, updated_at
+                      created_at
                     )
                     VALUES (
                       :listing_id, :hash, :status, :is_blurred, :priority, :external_url, :user_id,
-                      NOW(), NOW()
+                      NOW()
                     )
                     RETURNING id
                     """
@@ -549,8 +562,7 @@ class CatalogListingsRepository:
             text(
                 """
                 UPDATE images
-                SET status = :inactive_status,
-                    updated_at = NOW()
+                SET status = :inactive_status
                 WHERE listing_id = :listing_id
                   AND external_url IN :missing_urls
                 """
@@ -678,9 +690,9 @@ class CatalogListingsRepository:
         return columns
 
     def _attribute_value_from_row(self, row: Any) -> Any:
-        if row.get("attribute_options_id") is not None:
-            return row.get("attribute_options_id")
         for column in ("value_text", "value_number", "value_boolean", "value_date", "value_json"):
             if row.get(column) is not None:
                 return row[column]
+        if row.get("attribute_options_id") is not None:
+            return row.get("attribute_options_id")
         return None

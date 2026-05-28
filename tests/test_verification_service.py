@@ -59,7 +59,7 @@ def _listing(status: str = "active") -> ExistingListing:
         price=Decimal("1200"),
         currency="KGS",
         status=status,
-        attributes={"external_id": "A-1", "source": "autoland"},
+        attributes={"external_id": "A-1"},
         images=(
             ExistingImage(
                 id=1,

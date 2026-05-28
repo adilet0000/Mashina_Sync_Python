@@ -25,7 +25,6 @@ CURRENCY_ID_TO_CODE: dict[int, str] = {
 
 LEGACY_FIELD_TO_ATTRIBUTE_SLUG: dict[str, str] = {
     "external_id": "external_id",
-    "source": "source",
     "region": "region",
     "town": "city",
     "make": "make",

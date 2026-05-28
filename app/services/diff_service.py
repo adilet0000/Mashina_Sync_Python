@@ -178,8 +178,12 @@ class DiffService:
         return Decimal(str(value))
 
     def _normalize_attribute_value(self, value: Any) -> Any:
+        if isinstance(value, bool):
+            return value
         if isinstance(value, Decimal):
             return str(value.normalize())
+        if isinstance(value, int | float):
+            return str(Decimal(str(value)).normalize())
         if isinstance(value, list | tuple):
             return tuple(value)
         return value

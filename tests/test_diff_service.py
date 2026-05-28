@@ -76,3 +76,45 @@ def test_diff_marks_update_when_nonvolatile_field_changes() -> None:
 def test_diff_detects_missing_current_listing() -> None:
     plan = DiffService().diff((), {"A-1": _existing()})
     assert len(plan.deactivate) == 1
+
+
+def test_diff_treats_decimal_and_int_attribute_values_as_equal() -> None:
+    payload = _payload()
+    payload = CatalogListingPayload(
+        **{
+            **payload.__dict__,
+            "attributes": (
+                CatalogAttributePayload(slug="external_id", value="A-1"),
+                CatalogAttributePayload(slug="condition", value=1, option_old_mysql_id=1),
+            ),
+        }
+    )
+    existing = _existing()
+    object.__setattr__(
+        existing,
+        "attributes",
+        {"external_id": "A-1", "condition": Decimal("1")},
+    )
+
+    plan = DiffService().diff((payload,), {"A-1": existing})
+
+    assert len(plan.unchanged) == 1
+    assert not plan.update
+
+
+def test_sync_result_counts_images_for_inserted_and_deactivated_listings() -> None:
+    from app.dto import SyncResult
+    from app.services.sync_service import SyncService
+
+    old_listing = _existing()
+    object.__setattr__(old_listing, "external_id", "OLD-1")
+    plan = DiffService().diff((_payload(),), {"OLD-1": old_listing})
+    result = SyncResult(provider="autohub", dry_run=True, verify=False)
+
+    service = SyncService.__new__(SyncService)
+    service._apply_plan_counts(result, plan)  # noqa: SLF001
+
+    assert result.inserted_count == 1
+    assert result.deactivated_count == 1
+    assert result.image_inserted_count == 1
+    assert result.image_deactivated_count == 1

@@ -51,7 +51,7 @@ class CatalogReferenceResolver:
             self.session.execute(
                 text(
                     """
-                    SELECT id, slug, name
+                    SELECT id, slug, name_ru, name_en, name_kg
                     FROM attributes
                     WHERE slug = :slug
                     LIMIT 1
@@ -66,7 +66,7 @@ class CatalogReferenceResolver:
             AttributeReference(
                 id=int(row["id"]),
                 slug=str(row["slug"]),
-                name=row.get("name"),
+                name=row.get("name_ru") or row.get("name_en") or row.get("name_kg"),
             )
             if row
             else None

@@ -130,3 +130,37 @@ def test_deactivate_missing_images_uses_configured_inactive_status() -> None:
 
     assert count == 2
     assert session.calls[-1][1]["inactive_status"] == 0
+
+
+def test_source_attribute_is_not_required_when_missing() -> None:
+    repository = CatalogListingsRepository(
+        FakeSession(),  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        reference_resolver=FakeResolver(attribute_id=None),  # type: ignore[arg-type]
+    )
+
+    ok = repository.upsert_attribute(
+        101,
+        CatalogAttributePayload(slug="source", value="autoland"),
+    )
+
+    assert ok is False
+
+
+def test_image_sql_does_not_reference_missing_updated_at_column() -> None:
+    session = FakeSession()
+    repository = CatalogListingsRepository(
+        session,  # type: ignore[arg-type]
+        _settings(),  # type: ignore[arg-type]
+        reference_resolver=FakeResolver(),  # type: ignore[arg-type]
+    )
+
+    repository.deactivate_missing_images(
+        listing_id=101,
+        current_urls={"https://img.test/old.jpg"},
+        new_urls=set(),
+    )
+
+    sql = session.calls[-1][0]
+    assert "UPDATE images" in sql
+    assert "updated_at" not in sql

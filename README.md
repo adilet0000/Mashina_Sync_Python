@@ -51,7 +51,7 @@ Provider feed/API/page
 -> LegacyAd DTO
 -> CatalogListingPayload
 -> read current rows from new catalog DB
--> diff by source + user_id + category_id + external_id
+-> diff by provider source from sync_listing_map + user_id + category_id + external_id
 -> guarded insert/update/deactivate
 -> optional verification
 ```
@@ -210,8 +210,8 @@ user id, category ids, mode, and write flag. Passwords are never printed.
 
 `--verify` is meaningful after real writes. It re-reads affected rows and checks:
 
-- listing exists by provider/source + user_id + category_id + external_id
-- `external_id` and `source` attributes exist
+- listing exists by `sync_listing_map.source + user_id + category_id + external_id`
+- `external_id` attribute exists
 - user id and category id
 - title, description, price, currency, status
 - listing attributes presence and scalar values

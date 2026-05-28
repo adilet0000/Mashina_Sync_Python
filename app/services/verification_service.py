@@ -102,8 +102,8 @@ class VerificationService:
         attributes: dict[str, object] = listing.attributes
         if attributes.get("external_id") != payload.external_id:
             mismatches.append("external_id attribute mismatch")
-        if attributes.get("source") != payload.source:
-            mismatches.append("source attribute mismatch")
+        if listing.source and listing.source != payload.source:
+            mismatches.append("provider identity mismatch")
         if listing.title != payload.title:
             mismatches.append("title mismatch")
         if listing.category_id != payload.category_id:
@@ -192,12 +192,14 @@ class VerificationService:
         return attribute.value is not None
 
     def _normalize_attribute_value(self, value: Any) -> Any:
+        if isinstance(value, bool):
+            return value
         if isinstance(value, Decimal):
             return str(value.normalize())
+        if isinstance(value, int | float):
+            return str(Decimal(str(value)).normalize())
         if isinstance(value, list | tuple):
             return tuple(value)
-        if isinstance(value, bool | int | float):
-            return value
         if value in (None, ""):
             return value
         return str(value)

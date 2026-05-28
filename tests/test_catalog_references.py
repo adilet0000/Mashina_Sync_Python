@@ -17,7 +17,17 @@ class FakeSession:
         sql = str(statement)
         if "FROM attributes" in sql:
             if params["slug"] == "make":
-                return FakeResult([{"id": 11, "slug": "make", "name": "Make"}])
+                return FakeResult(
+                    [
+                        {
+                            "id": 11,
+                            "slug": "make",
+                            "name_ru": "Марка",
+                            "name_en": "Make",
+                            "name_kg": None,
+                        }
+                    ]
+                )
             return FakeResult([])
         if "FROM attribute_options" in sql and "old_mysql_id" in sql:
             return FakeResult(
@@ -46,3 +56,11 @@ def test_reference_resolver_resolves_option_by_old_mysql_id() -> None:
     assert option is not None
     assert option.id == 22
     assert option.old_mysql_id == 1
+
+
+def test_reference_resolver_query_uses_real_attribute_name_columns() -> None:
+    session = FakeSession()
+    resolver = CatalogReferenceResolver(session)  # type: ignore[arg-type]
+    attribute = resolver.resolve_attribute_by_slug("make")
+    assert attribute is not None
+    assert attribute.name == "Марка"
